@@ -6,6 +6,10 @@ import getpass
 import socket
 from datetime import datetime, timedelta
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFormLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QScrollArea, QMessageBox
+import sqlparse
+from pygments import highlight
+from pygments.formatters import HtmlFormatter
+from pygments.lexers import SqlLexer
 
 CONFIG_FILE = "config.json"
 
@@ -43,6 +47,15 @@ def get_default_config():
 
 def get_default_event_time():
     return (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+
+def format_and_highlight_sql(query: str) -> str:
+    # Format SQL
+    formatted_sql = sqlparse.format(query, reindent=True, keyword_case='upper').strip()
+    
+    # Highlight SQL
+    highlighted_sql = highlight(formatted_sql, SqlLexer(), HtmlFormatter())
+    
+    return highlighted_sql
 
 def run_query(default_config):
     username = username_input.text().strip() or default_config["username"]
@@ -99,7 +112,13 @@ def run_query(default_config):
             sql_text = row[1] # it is a byte now convert it to string
             if isinstance(sql_text, bytes):
                 sql_text = sql_text.decode('utf-8')
-            output_text.append(f"{event_time}\n{sql_text}\n\n")
+            if sql_text == "" or sql_text is None:
+                sql_text = "Empty SQL statement"
+            if len(sql_text) > 1000:
+                sql_text = sql_text[:1000] + "..."
+            formatted_highlighted_sql = format_and_highlight_sql(sql_text)
+            print(formatted_highlighted_sql)
+            output_text.append(f"{event_time}{formatted_highlighted_sql}<br/>")
             last_time = row[0]
 
         if last_time:
@@ -167,10 +186,8 @@ layout.addWidget(run_button)
 
 output_text = QTextEdit()
 output_text.setReadOnly(True)
-scroll_area = QScrollArea()
-scroll_area.setWidget(output_text)
-scroll_area.setWidgetResizable(True)
-layout.addWidget(scroll_area)
+output_text.setAcceptRichText(True)
+layout.addWidget(output_text)
 
 window.setLayout(layout)
 window.show()
