@@ -187,7 +187,7 @@ class ResponsiveForm(QWidget):
                 "SELECT event_time, argument AS sql_text FROM mysql.general_log "
                 "WHERE event_time > %s "
                 "AND user_host = %s "
-                "ORDER BY event_time"
+                "ORDER BY event_time desc"
             )
 
             cursor.execute(query, (event_time, user_host))
@@ -211,10 +211,10 @@ class ResponsiveForm(QWidget):
                     formatted_highlighted_sql = format_and_highlight_sql(sql_text)
                     print(formatted_highlighted_sql)
                     html_output += f"<b>{event_time}</b>{formatted_highlighted_sql}<br/>"
-                    last_time = row[0]
-
-            if last_time:
-                save_last_event_time(last_time.strftime("%Y-%m-%d %H:%M:%S"))
+                    
+            last_time = results[0][0] if results else None
+            if last_time and last_time != '':
+                save_last_event_time(last_time.strftime("%Y-%m-%d %H:%M:%S.%f"))
                 self.inputs[self.keys_map["event_time"]][1].setText(last_time.strftime("%Y-%m-%d %H:%M:%S.%f"))
 
             if not results:
