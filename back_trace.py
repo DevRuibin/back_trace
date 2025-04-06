@@ -1,8 +1,9 @@
 import sys
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QTextEdit, QPushButton,
-    QGridLayout, QVBoxLayout, QScrollArea, QSizePolicy, QMessageBox
+    QGridLayout, QVBoxLayout, QScrollArea, QSizePolicy, QMessageBox, QHBoxLayout
 )
+from PyQt5.QtGui import QTextDocument
 
 import mysql.connector
 import json
@@ -84,7 +85,11 @@ class ResponsiveForm(QWidget):
             "query_host": 5,    
             "event_time": 6
         }
+        self.search_input = None
+        self.next_button = None
+        self.prev_button = None
         self.init_ui()
+        
         
 
     def init_ui(self):
@@ -131,6 +136,22 @@ class ResponsiveForm(QWidget):
 
         self.update_layout()
         self.installEventFilter(self)
+
+        search_layout = QHBoxLayout()
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Search...")
+        self.search_input.returnPressed.connect(self.on_next_search)
+        search_layout.addWidget(self.search_input)
+
+        self.next_button = QPushButton("Next")
+        self.next_button.clicked.connect(self.on_next_search)
+        search_layout.addWidget(self.next_button)
+
+        self.prev_button = QPushButton("Previous")
+        self.prev_button.clicked.connect(self.on_previous_search)
+        search_layout.addWidget(self.prev_button)
+
+        self.main_layout.addLayout(search_layout)
 
         # Run Button
         run_button = QPushButton("Run Query")
@@ -251,7 +272,45 @@ class ResponsiveForm(QWidget):
             label.setMinimumHeight(20)
             self.grid_layout.addWidget(label, row, col)
             self.grid_layout.addWidget(input_field, row, col + 1)
+    # Add these new methods for search functionality
+    def on_next_search(self):
+        search_text = self.search_input.text()
+        if not search_text:
+            return
+        
+        # Search forward from current cursor position
+        cursor = self.output_text.textCursor()
+        start_pos = cursor.selectionEnd()
+        cursor.setPosition(start_pos)
+        self.output_text.setTextCursor(cursor)
+        
+        if not self.output_text.find(search_text):
+            # Wrap around to start
+            cursor.movePosition(cursor.Start)
+            
 
+            self.output_text.setTextCursor(cursor)
+            if not self.output_text.find(search_text):
+                QMessageBox.information(self, "Search", "No more matches found.")
+
+    def on_previous_search(self):
+        search_text = self.search_input.text()
+        if not search_text:
+            return
+        
+        # Search backward from current cursor position
+        cursor = self.output_text.textCursor()
+        start_pos = cursor.selectionStart()
+        cursor.setPosition(start_pos)
+        self.output_text.setTextCursor(cursor)
+        
+        flags = QTextDocument.FindBackward
+        if not self.output_text.find(search_text, flags):
+            # Wrap around to end
+            cursor.movePosition(cursor.End)
+            self.output_text.setTextCursor(cursor)
+            if not self.output_text.find(search_text, flags):
+                QMessageBox.information(self, "Search", "No more matches found.")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
